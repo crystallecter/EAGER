@@ -1,6 +1,6 @@
 # EAGER
 EAGER is a fuzzer that systematically improves Android kernel fuzzing through module-aware corpus generation. 
-\tool{} follows a three-phase pipeline: it first extracts interface definitions from the LLVM bitcode of loadable kernel modules; then infers parameter constraints via symbolic execution; and finally synthesizes valid corpus entries while ensuring correct module initialization through dependency-aware loading. 
+EAGER follows a three-phase pipeline: it first extracts interface definitions from the LLVM bitcode of loadable kernel modules; then infers parameter constraints via symbolic execution; and finally synthesizes valid corpus entries while ensuring correct module initialization through dependency-aware loading. 
 
 ## Build
 ### Install Prerequisites
@@ -11,6 +11,7 @@ sudo apt install make gcc flex bison libncurses-dev libelf-dev libssl-dev
 ```
 
 ### Install golang
+
 We use golang in EAGER, so make sure your golang is avaliable before build EAGER.
 ```
 wget https://dl.google.com/go/go1.22.4.linux-amd64.tar.gz
@@ -24,6 +25,7 @@ export PATH=$GOROOT/bin:$PATH
 ```
 
 ### Prepare Android Kernel
+
 In here we use Android kernel(16-6.12) as an example.
 First, we need to download the source code.
 ```
@@ -34,7 +36,6 @@ curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
 chmod a+x ~/bin/repo
 
 # Download the source code
-
 repo init -u https://android.googlesource.com/kernel/manifest -b android16-6.12
 repo sync
 ```
@@ -127,6 +128,9 @@ System Configuration
         ( ) Root password = set your password using this option
 [*] Run a getty (login prompt) after boot  --->
     TTY port - ttyAMA0
+[*] remount root filesystem read-write during boot                                   
+	(eth0) Network interface to configure through DHCP
+(/path/to/overlay) Root filesystem overlay directories
 Target packages
     [*]   Show packages that are also provided by busybox
     Networking applications
@@ -135,11 +139,13 @@ Target packages
         [*] openssh
 Filesystem images
     [*] ext2/3/4 root filesystem
-        ext2/3/4 variant - ext3
-        exact size in blocks - 6000000
+        ext2/3/4 variant - ext4
+        exact size in blocks - 512M
     [*] tar the root filesystem
 ```
-Run make. After the build, confirm that output/images/rootfs.ext3 exists.
+Put all the `.ko` files to /path/to/overlay and then run make.
+
+After the build, confirm that output/images/rootfs.ext4 exists.
 
 ### Boot Manually
 You should be able to start up the kernel as follows.
@@ -148,7 +154,7 @@ You should be able to start up the kernel as follows.
   -machine virt \
   -cpu cortex-a57 \
   -nographic -smp 1 \
-  -hda /path/to/rootfs.ext3 \
+  -hda /path/to/rootfs.ext4 \
   -kernel /path/to/arch/arm64/boot/Image \
   -append "console=ttyAMA0 root=/dev/vda oops=panic panic_on_warn=1 panic=-1 ftrace_dump_on_oops=orig_cpu debug earlyprintk=serial slub_debug=UZ" \
   -m 2048 \
@@ -156,6 +162,7 @@ You should be able to start up the kernel as follows.
 ```
 
 ### Set up the QEMU Disk
+
 Install QEMU: `sudo apt-get install qemu-system-x86`
 Now that we have a shell, let us add a few lines to existing init scripts so that they are executed each time Syzkaller brings up the VM.
 
@@ -181,10 +188,18 @@ PasswordAuthentication yes
 ```
 Reboot the machine, and ensure that you can ssh from host to guest as.`ssh -i /path/to/id_rsa root@localhost -p 10023`
 
-### Compile EAGER
-### 
+### Run EAGER
+
+Create a workdir and move the corpus.db in it and then
+
+```
+./syz-manager -config=config.json
+```
+
+
 
 ## Experiment Results
+
 ### Host Machine System Configuration
 ```
 CPU: 128 cores
